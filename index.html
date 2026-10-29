@@ -1,1 +1,49 @@
-
+import json,base64,io,glob
+from PIL import Image
+P=lambda n:sorted(glob.glob('p-*'))[n-1]
+cols=lambda y0,y1:[(192,y0,390,y1),(390,y0,588,y1),(588,y0,818,y1)]
+C={}
+for i,b in enumerate([(265,540,395,632),(285,640,375,740),(260,755,400,835),(260,850,400,950),(280,962,380,1072)],1):C['q%d'%i]=(3,b)
+for n,(y0,y1) in {6:(490,665),7:(702,875),8:(912,1085)}.items():
+  for k,b in zip('ABC',cols(y0,y1)):C['q%d%s'%(n,k)]=(4,b)
+for n,(y0,y1) in {9:(170,340),10:(382,555)}.items():
+  for k,b in zip('ABC',cols(y0,y1)):C['q%d%s'%(n,k)]=(5,b)
+for k,b in zip('ABCDEF',[(180,318,290,456),(545,330,660,440),(190,472,342,576),(565,452,660,575),(178,598,342,708),(552,588,660,722)]):C['L3'+k]=(6,b)
+for i,y in enumerate([(518,627),(628,737),(738,847),(848,966),(967,1076)],21):C['q%d'%i]=(8,(195,y[0],398,y[1]))
+for k,b in zip('ABCDEF',[(172,338,308,442),(555,336,645,444),(172,466,285,570),(555,452,645,565),(172,570,255,688),(552,585,675,668)]):C['R2'+k]=(9,b)
+IMG={}
+for k,(pg,b) in list(C.items()):
+  if not (k[0]=='q' and k[-1] in 'ABC' and len(k)>2):
+    d=34 if pg==8 else 18
+    C[k]=(pg,(b[0]-6,b[1]-d,b[2]+6,b[3]+8))
+for k,(pg,b) in C.items():
+  im=Image.open(P(pg)).convert('RGB');W,H=im.size;sx=W/920;sy=H/1295
+  c=im.crop((int(b[0]*sx),int(b[1]*sy),int(b[2]*sx),int(b[3]*sy)));c.thumbnail((300,300))
+  o=io.BytesIO();c.save(o,'JPEG',quality=72);IMG[k]='data:image/jpeg;base64,'+base64.b64encode(o.getvalue()).decode()
+  c.save('chk_%s.jpg'%k)
+L=lambda p,h:[p,h]
+def pk(opts):return [dict(k=k,lines=[L(p,h)]) for k,p,h in opts]
+def pi(n):return [dict(k=k,img='q%d%s'%(n,k)) for k in 'ABC']
+S=[]
+S.append(dict(id='L1',skill='L',title='一、听力 · 第一部分',range='Câu 1–5',instr='Nghe và xem tranh, chọn ✓ (đúng) hoặc × (sai). Mỗi câu nghe 2 lần. Ví dụ: tranh em bé cười – nghe “很高兴” → ✓; tranh 3 em bé đọc sách – nghe “看电影” → ×.',qs=[dict(n=i,type='tf',img='q%d'%i) for i in range(1,6)]))
+S.append(dict(id='L2',skill='L',title='一、听力 · 第二部分',range='Câu 6–10',instr='Nghe và chọn tranh đúng (A/B/C). Mỗi câu nghe 2 lần. Ví dụ: nghe “这是我的书” → chọn A (tranh sách).',qs=[dict(n=n,type='pick',opts=pi(n)) for n in range(6,11)]))
+S.append(dict(id='L3',skill='L',title='一、听力 · 第三部分',range='Câu 11–15',instr='Nghe hội thoại và chọn tranh phù hợp (A–F). Mỗi câu nghe 2 lần. Ví dụ: 女：你好！ 男：你好！很高兴认识你。 → C.',bank=[dict(k=k,img='L3'+k) for k in 'ABCDEF'],qs=[dict(n=n,type='bank') for n in range(11,16)]))
+S.append(dict(id='L4',skill='L',title='一、听力 · 第四部分',range='Câu 16–20',instr='Nghe và chọn đáp án đúng (A/B/C). Mỗi câu nghe 2 lần. Ví dụ: 下午我去商店，我想买一些水果。问：她下午去哪里？ → A 商店.',qs=[dict(n=16,type='pick',opts=pk([('A','hěn lěng','很冷'),('B','hěn rè','很热'),('C','hěn hǎo','很好')])),dict(n=17,type='pick',opts=pk([('A','xuéxiào','学校'),('B','fàndiàn','饭店'),('C','shāngdiàn','商店')])),dict(n=18,type='pick',opts=pk([('A','wǒ','我'),('B','péngyou','朋友'),('C','lǎoshī','老师')])),dict(n=19,type='pick',opts=pk([('A','yīyuàn','医院'),('B','shuǐguǒdiàn','水果店'),('C','diànyǐngyuàn','电影院')])),dict(n=20,type='pick',opts=pk([('A','fàndiàn','饭店'),('B','xuéxiào','学校'),('C','shūdiàn','书店')]))]))
+rw=[('tīng','听'),('píngguǒ','苹果'),('chá','茶'),('zàijiàn','再见'),('shū','书')]
+S.append(dict(id='R1',skill='R',title='二、阅读 · 第一部分',range='Câu 21–25',instr='Xem tranh và từ, chọn ✓ (đúng) hoặc × (sai). Ví dụ: tranh máy ảnh – 电视 → ×; tranh máy bay – 飞机 → ✓.',qs=[dict(n=21+i,type='tf',img='q%d'%(21+i),lines=[L(*rw[i])]) for i in range(5)]))
+t2=[('Bàba zài gōngzuò ne.','爸爸在工作呢。'),('Tā qù shāngdiàn mǎile yìdiǎnr shuǐguǒ.','她去商店买了一点儿水果。'),('Lǐ xiǎojiě ài hē chá.','李小姐爱喝茶。'),('Xià yǔ le, tiānqì hěn lěng.','下雨了，天气很冷。'),('Wǒ hěn ài chī Zhōngguócài.','我很爱吃中国菜。')]
+S.append(dict(id='R2',skill='R',title='二、阅读 · 第二部分',range='Câu 26–30',instr='Chọn tranh phù hợp với câu (A–F). Ví dụ: 我很喜欢这本书。 → E.',bank=[dict(k=k,img='R2'+k) for k in 'ABCDEF'],qs=[dict(n=26+i,type='bank',lines=[L(*t2[i])]) for i in range(5)]))
+t3=[('Zhège xuéxiào yǒu duōshao lǎoshī?','这个学校有多少老师？'),('Nǐ zěnme qù huǒchēzhàn?','你怎么去火车站？'),('Nǐ qù shāngdiàn mǎi shénme?','你去商店买什么？'),('Nǐmen zhèr yǒu zhè běn shū ma?','你们这儿有这本书吗？'),('Tā lái Zhōngguó jǐ nián le?','她来中国几年了？')]
+b3=[('A','Yīfu.','衣服。'),('B','Duìbuqǐ, méiyǒu.','对不起，没有。'),('C','nián duō le.','5年多了。'),('D','ge.','30个。'),('E','Kāichē.','开车。'),('F','Hǎode, xièxie!','好的，谢谢！')]
+S.append(dict(id='R3',skill='R',title='二、阅读 · 第三部分',range='Câu 31–35',instr='Chọn câu trả lời phù hợp với câu hỏi (A–F). Ví dụ: 你喝水吗？ → F 好的，谢谢！',bank=[dict(k=k,lines=[L(p,h)]) for k,p,h in b3],qs=[dict(n=31+i,type='bank',lines=[L(*t3[i])]) for i in range(5)]))
+b4=[('A','kāi','开'),('B','dōu','都'),('C','bú kèqi','不客气'),('D','míngzi','名字'),('E','nǎ','哪'),('F','xuéxí','学习')]
+q4=[[L('Bàba māma hěn ài wǒ.','爸爸妈妈（　）很爱我。')],[L('Yǔ tài dà le, chē bù néng le.','雨太大了，车不能（　）了。')],[L('Shàngwǔ wǒ nǚ’ér zài xuéxiào.','上午我女儿在学校（　）。')],[L('Xièxie nǐ qǐng wǒ chī fàn.','女：谢谢你请我吃饭。'),L('','男：（　）。')],[L('Nǐ shì guó rén?','男：你是（　）国人？'),L('Wǒ shì Zhōngguórén.','女：我是中国人。')]]
+S.append(dict(id='R4',skill='R',title='二、阅读 · 第四部分',range='Câu 36–40',instr='Chọn từ điền vào chỗ trống (A–F). Ví dụ: 你叫什么（D）？ → D 名字.',bank=[dict(k=k,lines=[L(p,h)]) for k,p,h in b4],qs=[dict(n=36+i,type='bank',lines=q4[i]) for i in range(5)]))
+E=dict(title='中文水平考试 HSK（一级）全真模拟题 1',level='HSK 1',minutes=35,perQ=5,sections=S,key={})
+h=open('t.html',encoding='utf8').read()
+import os
+aud=''
+if os.path.getsize('a.mp3')<9e6:aud='data:audio/mpeg;base64,'+base64.b64encode(open('a.mp3','rb').read()).decode()
+h=h.replace('__EXAM__',json.dumps(E,ensure_ascii=False)).replace('__IMG__',json.dumps(IMG)).replace('__AUD__',aud)
+open('/mnt/user-data/outputs/hsk1-de1.html','w',encoding='utf8').write(h)
+print(len(h),len(IMG),bool(aud))
